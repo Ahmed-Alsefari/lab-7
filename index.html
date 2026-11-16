@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CPIT-405 | Lab 7</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f8f9fa;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+            background-color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        h2 {
+            font-size: 20px;
+            margin: 0 15px 0 0;
+        }
+
+        input {
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            width: 220px;
+        }
+
+        button {
+            padding: 10px 15px;
+            background-color: #495057;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #343a40;
+        }
+
+        #message {
+            text-align: center;
+            margin: 15px;
+        }
+
+        #gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+            gap: 15px;
+        }
+
+        #gallery img {
+            width: 100%;
+            height: 300px;
+            object-fit: cover;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h2>Unsplash API</h2>
+        <input type="text" id="searchInput" value="Makkah" placeholder="Search photos...">
+        <button id="xhrBtn">Search using XHR</button>
+        <button id="fetchBtn">Search using Fetch</button>
+        <button id="asyncBtn">Search using Async/Await</button>
+    </div>
+
+    <p id="message" role="status"></p>
+    <div id="gallery"></div>
+
+    <script>
+        const accessKey = "tsldo-pOI2QcnnIobAA2Hp3x7Kn7ApxzZENTpniLxh0";
+        const searchInput = document.getElementById("searchInput");
+        const gallery = document.getElementById("gallery");
+        const message = document.getElementById("message");
+        let searchNumber = 0;
+
+        function getURL() {
+            const query = searchInput.value.trim();
+
+            if (!query) {
+                message.textContent = "Please enter a search term.";
+                return null;
+            }
+
+            message.textContent = "Loading images...";
+            gallery.innerHTML = "";
+            searchNumber++;
+            return "https://api.unsplash.com/search/photos?query=" + encodeURIComponent(query) + "&per_page=12";
+        }
+
+        function showImages(data, number) {
+            if (number !== searchNumber) return;
+
+            gallery.innerHTML = "";
+            if (!data.results || data.results.length === 0) {
+                message.textContent = "No images found.";
+                return;
+            }
+
+            message.textContent = "";
+            data.results.forEach(photo => {
+                const img = document.createElement("img");
+                img.src = photo.urls.small;
+                img.alt = photo.alt_description || "Unsplash photo";
+                img.loading = "lazy";
+                gallery.appendChild(img);
+            });
+        }
+
+        function showError(number) {
+            if (number === searchNumber) {
+                message.textContent = "Error loading images. Please try again.";
+            }
+        }
+
+        function searchXHR() {
+            const url = getURL();
+            if (!url) return;
+            const number = searchNumber;
+            const xhr = new XMLHttpRequest();
+
+            xhr.open("GET", url, true);
+            xhr.setRequestHeader("Authorization", "Client-ID " + accessKey);
+            xhr.onload = function() {
+                if (xhr.status === 200) {
+                    try {
+                        showImages(JSON.parse(xhr.responseText), number);
+                    } catch (error) {
+                        showError(number);
+                    }
+                } else {
+                    showError(number);
+                }
+            };
+            xhr.onerror = function() { showError(number); };
+            xhr.send();
+        }
+
+        function searchFetch() {
+            const url = getURL();
+            if (!url) return;
+            const number = searchNumber;
+
+            fetch(url, {
+                headers: { Authorization: "Client-ID " + accessKey }
+            })
+            .then(response => {
+                if (!response.ok) throw new Error("Request failed");
+                return response.json();
+            })
+            .then(data => showImages(data, number))
+            .catch(() => showError(number));
+        }
+
+        async function searchAsync() {
+            const url = getURL();
+            if (!url) return;
+            const number = searchNumber;
+
+            try {
+                const response = await fetch(url, {
+                    headers: { Authorization: "Client-ID " + accessKey }
+                });
+                if (!response.ok) throw new Error("Request failed");
+                const data = await response.json();
+                showImages(data, number);
+            } catch (error) {
+                showError(number);
+            }
+        }
+
+        document.getElementById("xhrBtn").addEventListener("click", searchXHR);
+        document.getElementById("fetchBtn").addEventListener("click", searchFetch);
+        document.getElementById("asyncBtn").addEventListener("click", searchAsync);
+
+        searchInput.addEventListener("keydown", function(event) {
+            if (event.key === "Enter") searchAsync();
+        });
+
+        searchAsync();
+    </script>
+</body>
+</html>
